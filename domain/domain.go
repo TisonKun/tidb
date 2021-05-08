@@ -24,7 +24,6 @@ import (
 	"unsafe"
 
 	"github.com/ngaut/pools"
-	"github.com/ngaut/sync2"
 	"github.com/pingcap/errors"
 	"github.com/pingcap/failpoint"
 	"github.com/pingcap/parser/ast"
@@ -83,13 +82,13 @@ type Domain struct {
 	slowQuery            *topNSlowQueries
 	expensiveQueryHandle *expensivequery.Handle
 	wg                   sync.WaitGroup
-	statsUpdating        sync2.AtomicInt32
+	statsUpdating        int32
 	cancel               context.CancelFunc
 	indexUsageSyncLease  time.Duration
 
 	serverID             uint64
 	serverIDSession      *concurrency.Session
-	isLostConnectionToPD sync2.AtomicInt32 // !0: true, 0: false.
+	isLostConnectionToPD int32 // !0: true, 0: false.
 }
 
 // loadInfoSchema loads infoschema at startTS into handle, usedSchemaVersion is the currently used
@@ -757,9 +756,9 @@ func (do *Domain) Init(ddlLease time.Duration, sysFactory func(*Domain) (pools.R
 			err := do.acquireServerID(ctx)
 			if err != nil {
 				logutil.BgLogger().Error("acquire serverID failed", zap.Error(err))
-				do.isLostConnectionToPD.Set(1) // will retry in `do.serverIDKeeper`
+				atomic.StoreInt32(&do.isLostConnectionToPD, 1) // will retry in `do.serverIDKeeper`
 			} else {
-				do.isLostConnectionToPD.Set(0)
+				atomic.StoreInt32(&do.isLostConnectionToPD, 0)
 			}
 
 			do.wg.Add(1)
@@ -1077,15 +1076,15 @@ func (do *Domain) CreateStatsHandle(ctx sessionctx.Context) error {
 
 // StatsUpdating checks if the stats worker is updating.
 func (do *Domain) StatsUpdating() bool {
-	return do.statsUpdating.Get() > 0
+	return atomic.LoadInt32(&do.statsUpdating) > 0
 }
 
 // SetStatsUpdating sets the value of stats updating.
 func (do *Domain) SetStatsUpdating(val bool) {
 	if val {
-		do.statsUpdating.Set(1)
+		atomic.StoreInt32(&do.statsUpdating, 1)
 	} else {
-		do.statsUpdating.Set(0)
+		atomic.StoreInt32(&do.statsUpdating, 0)
 	}
 }
 
@@ -1329,7 +1328,7 @@ func (do *Domain) ServerID() uint64 {
 
 // IsLostConnectionToPD indicates lost connection to PD or not.
 func (do *Domain) IsLostConnectionToPD() bool {
-	return do.isLostConnectionToPD.Get() != 0
+	return atomic.LoadInt32(&do.isLostConnectionToPD) != 0
 }
 
 const (
@@ -1506,7 +1505,7 @@ func (do *Domain) serverIDKeeper() {
 
 	onConnectionToPDRestored := func() {
 		logutil.BgLogger().Info("restored connection to PD")
-		do.isLostConnectionToPD.Set(0)
+		atomic.StoreInt32(&do.isLostConnectionToPD, 0)
 		lastSucceedTimestamp = time.Now()
 
 		if err := do.info.StoreServerInfo(context.Background()); err != nil {
@@ -1516,7 +1515,7 @@ func (do *Domain) serverIDKeeper() {
 
 	onConnectionToPDLost := func() {
 		logutil.BgLogger().Warn("lost connection to PD")
-		do.isLostConnectionToPD.Set(1)
+		atomic.StoreInt32(&do.isLostConnectionToPD, 1)
 
 		// Kill all connections when lost connection to PD,
 		//   to avoid the possibility that another TiDB instance acquires the same serverID and generates a same connection ID,
