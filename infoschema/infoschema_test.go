@@ -15,6 +15,9 @@ package infoschema_test
 
 import (
 	"context"
+	"sync"
+	"testing"
+
 	"github.com/pingcap/errors"
 	"github.com/pingcap/parser/model"
 	"github.com/pingcap/parser/mysql"
@@ -27,8 +30,6 @@ import (
 	"github.com/pingcap/tidb/types"
 	"github.com/pingcap/tidb/util"
 	"github.com/stretchr/testify/suite"
-	"sync"
-	"testing"
 )
 
 func TestInfoSchemaTestSuite(t *testing.T) {
