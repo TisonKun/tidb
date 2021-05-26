@@ -196,7 +196,7 @@ func (e *CTEExec) computeSeedPart(ctx context.Context) (err error) {
 	}
 	e.curIter++
 
-	// TODO: This means iterInTbl's can be read. But too tricky.
+	// This means iterInTbl's can be read.
 	close(e.iterInTbl.GetBegCh())
 	return nil
 }

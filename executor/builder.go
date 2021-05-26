@@ -4101,8 +4101,8 @@ func (b *executorBuilder) buildCTE(v *plannercore.PhysicalCTE) Executor {
 		return nil
 	}
 
-	var resTbl cteutil.Storage = nil
-	var iterInTbl cteutil.Storage = nil
+	var resTbl cteutil.Storage
+	var iterInTbl cteutil.Storage
 	storageMap, ok := b.ctx.GetSessionVars().StmtCtx.CTEStorageMap.(map[int]*CTEStorages)
 	if !ok {
 		b.err = errors.New("type assertion for CTEStorageMap failed")
@@ -4153,7 +4153,6 @@ func (b *executorBuilder) buildCTETableReader(v *plannercore.PhysicalCTETable) E
 	}
 	storages, ok := storageMap[v.IDForStorage]
 	if !ok {
-		// TODO: We can add name in PhysicalCTETable to make the error msg more readable.
 		b.err = errors.Errorf("iterInTbl should already be set up by CTEExec(id: %d)", v.IDForStorage)
 		return nil
 	}

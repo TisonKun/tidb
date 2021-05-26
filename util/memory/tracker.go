@@ -492,5 +492,5 @@ const (
 	// LabelForSimpleTask represents the label of the simple task
 	LabelForSimpleTask int = -18
 	// LabelForCTEStorage represents the label of CTE storage
-	LabelForCTEStorage int = -18
+	LabelForCTEStorage int = -19
 )
