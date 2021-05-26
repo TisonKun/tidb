@@ -1689,6 +1689,8 @@ func (rs *execStmtResult) Close() error {
 	return finishStmt(context.Background(), se, nil, rs.sql)
 }
 
+// TODO: It's better to close CTE storage in CTEExec.
+// Because it is more concise and can reduce the risk of deadlock.
 func resetCTEStorageMap(se *session) error {
 	tmp := se.GetSessionVars().StmtCtx.CTEStorageMap
 	if tmp == nil {
@@ -1700,6 +1702,8 @@ func resetCTEStorageMap(se *session) error {
 		return errors.New("type assertion for CTEStorageMap failed")
 	}
 	for _, v := range storageMap {
+        v.ResTbl.Lock()
+        defer v.ResTbl.Unlock()
 		if err := v.ResTbl.DerefAndClose(); err != nil {
 			return err
 		}
