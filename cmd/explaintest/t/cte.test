@@ -1,8 +1,10 @@
+use test;
 # case 1
 drop table if exists tbl_0;
 create table tbl_0(a int);
 with recursive cte_0 (col_10,col_11,col_12) AS ( select 1, 2,3 from tbl_0 UNION select col_10 + 1,col_11 + 1,col_12 + 1 from cte_0 where col_10 < 10 ) select * from cte_0;
 # case 2
+drop table if exists tbl_1;
 CREATE TABLE `tbl_1` (
   `col_5` decimal(47,21) NOT NULL DEFAULT '5308.880000000000000000000',
   `col_6` enum('Alice','Bob','Charlie','David') DEFAULT NULL,
