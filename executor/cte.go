@@ -192,6 +192,7 @@ func (e *CTEExec) computeSeedPart(ctx context.Context) (err error) {
 		}
 	}
 	e.curIter++
+	e.iterInTbl.SetIter(e.curIter)
 
 	// This means iterInTbl's can be read.
 	close(e.iterInTbl.GetBegCh())
