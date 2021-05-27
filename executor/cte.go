@@ -176,9 +176,6 @@ func (e *CTEExec) Close() (err error) {
 func (e *CTEExec) computeSeedPart(ctx context.Context) (err error) {
 	e.curIter = 0
 	e.iterInTbl.SetIter(e.curIter)
-	if e.curIter >= e.ctx.GetSessionVars().CTEMaxRecursionDepth {
-		return ErrCTEMaxRecursionDepth.GenWithStackByArgs(e.curIter + 1)
-	}
 	for {
 		chk := newFirstChunk(e.seedExec)
 		if err = Next(ctx, e.seedExec, chk); err != nil {
@@ -206,6 +203,10 @@ func (e *CTEExec) computeRecursivePart(ctx context.Context) (err error) {
 		return nil
 	}
 
+	if e.curIter > e.ctx.GetSessionVars().CTEMaxRecursionDepth {
+		return ErrCTEMaxRecursionDepth.GenWithStackByArgs(e.curIter)
+	}
+
 	for {
 		chk := newFirstChunk(e.recursiveExec)
 		if err = Next(ctx, e.recursiveExec, chk); err != nil {
@@ -218,12 +219,12 @@ func (e *CTEExec) computeRecursivePart(ctx context.Context) (err error) {
 			if e.iterInTbl.NumChunks() == 0 {
 				break
 			}
-			if e.curIter >= e.ctx.GetSessionVars().CTEMaxRecursionDepth {
-				return ErrCTEMaxRecursionDepth.GenWithStackByArgs(e.curIter + 1)
-			}
 			// Next iteration begins. Need use iterOutTbl as input of next iteration.
 			e.curIter++
 			e.iterInTbl.SetIter(e.curIter)
+			if e.curIter > e.ctx.GetSessionVars().CTEMaxRecursionDepth {
+				return ErrCTEMaxRecursionDepth.GenWithStackByArgs(e.curIter)
+			}
 			// Make sure iterInTbl is setup before Close/Open,
 			// because some executors will read iterInTbl in Open() (like IndexLookupJoin).
 			if err = e.recursiveExec.Close(); err != nil {
