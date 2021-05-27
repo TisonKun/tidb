@@ -153,3 +153,30 @@ func (test *CTETestSuite) TestUnionDistinct(c *check.C) {
 	rows = tk.MustQuery("with recursive cte1(c1) as (select c1 from t1 union select c1 + 1 c1 from t1) select * from cte1 order by c1;")
 	rows.Check(testkit.Rows("1", "2", "3"))
 }
+
+func (test *CTETestSuite) TestCTEMaxRecursionDepth(c *check.C) {
+	tk := testkit.NewTestKit(c, test.store)
+	tk.MustExec("use test;")
+
+	tk.MustExec("set @@cte_max_recursion_depth = -1;")
+	err := tk.QueryToErr("with recursive cte1(c1) as (select 1 union select c1 + 1 c1 from cte1 where c1 < 100) select * from cte1;")
+	c.Assert(err, check.NotNil)
+	c.Assert(err.Error(), check.Equals, "[executor:3636]Recursive query aborted after 1 iterations. Try increasing @@cte_max_recursion_depth to a larger value")
+
+	tk.MustExec("set @@cte_max_recursion_depth = 0;")
+	err = tk.QueryToErr("with recursive cte1(c1) as (select 1 union select c1 + 1 c1 from cte1 where c1 < 0) select * from cte1;")
+	c.Assert(err, check.NotNil)
+	c.Assert(err.Error(), check.Equals, "[executor:3636]Recursive query aborted after 1 iterations. Try increasing @@cte_max_recursion_depth to a larger value")
+	err = tk.QueryToErr("with recursive cte1(c1) as (select 1 union select c1 + 1 c1 from cte1 where c1 < 1) select * from cte1;")
+	c.Assert(err, check.NotNil)
+	c.Assert(err.Error(), check.Equals, "[executor:3636]Recursive query aborted after 1 iterations. Try increasing @@cte_max_recursion_depth to a larger value")
+
+	tk.MustExec("set @@cte_max_recursion_depth = 1;")
+	rows := tk.MustQuery("with recursive cte1(c1) as (select 1 union select c1 + 1 c1 from cte1 where c1 < 0) select * from cte1;")
+	rows.Check(testkit.Rows("1"))
+	rows = tk.MustQuery("with recursive cte1(c1) as (select 1 union select c1 + 1 c1 from cte1 where c1 < 1) select * from cte1;")
+	rows.Check(testkit.Rows("1"))
+	err = tk.QueryToErr("with recursive cte1(c1) as (select 1 union select c1 + 1 c1 from cte1 where c1 < 2) select * from cte1;")
+	c.Assert(err, check.NotNil)
+	c.Assert(err.Error(), check.Equals, "[executor:3636]Recursive query aborted after 2 iterations. Try increasing @@cte_max_recursion_depth to a larger value")
+}
